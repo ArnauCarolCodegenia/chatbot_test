@@ -1,17 +1,14 @@
 import os
 from flask import Flask, request, jsonify, render_template
-import google.generativeai as genai
+from google import genai
 
 app = Flask(__name__)
 
-# Configure Gemini API
-# It's recommended to set your API key as an environment variable
-# export GEMINI_API_KEY='YOUR_API_KEY'
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Initialize the Generative Model
-model = genai.GenerativeModel('gemini-pro')
-chat = model.start_chat(history=[])
+# Set your API key as an environment variable:
+#   PowerShell: $env:GEMINI_API_KEY = "YOUR_API_KEY"
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+MODEL_NAME = "gemini-2.5-flash"
+chat = client.chats.create(model=MODEL_NAME)
 
 @app.route('/')
 def index():
