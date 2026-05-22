@@ -1,0 +1,80 @@
+# =============================================================================
+# Google ADK Project — Docker Compose
+# =============================================================================
+# Services:
+#   adk-app  — the ADK web server (main agent application)
+#   db       — PostgreSQL (persistent sessions; comment out if using SQLite)
+#   redis    — optional cache / pub-sub (uncomment if needed)
+#
+# Quick start:
+#   docker compose up --build
+#
+# The ADK dev UI will be available at: http://localhost:8080
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # ADK application
+  # ---------------------------------------------------------------------------
+  adk-app:
+    build: .
+    image: adk-project:latest
+    container_name: adk-app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      # Override DATABASE_URL to point at the compose db service
+      DATABASE_URL: postgresql+asyncpg://adk_user:adk_password@db:5432/adk_db
+      SESSION_BACKEND: database
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      # Mount source for live reload during development
+      - .:/app:ro
+      # Persist SQLite file if you switch back to SQLite
+      - adk_data:/app/data
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — persistent session and application data store
+  # Comment out this service if you prefer SQLite (set SESSION_BACKEND=memory)
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: adk-db
+    environment:
+      POSTGRES_USER: adk_user
+      POSTGRES_PASSWORD: adk_password
+      POSTGRES_DB: adk_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adk_user -d adk_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis — optional cache / message broker
+  # Uncomment if you implement caching in callbacks or need pub-sub
+  # ---------------------------------------------------------------------------
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: adk-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+
+volumes:
+  pg_data:
+  adk_data:
+  # redis_data:
